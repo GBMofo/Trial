@@ -495,9 +495,9 @@ local function updateNearbyPlants()
             local rarity = cropInfo and cropInfo.rarity or "Common"
             local color = rarityColors[rarity] or Color3.new(1,1,1)
             compactNearbyLabel.TextColor3 = color
-            compactNearbyLabel.Text = string.format("Nearby: %s (%.1f)", nearest.model.Name, nearest.dist)
+            compactNearbyLabel.Text = string.format("%s (%.1f)", nearest.model.Name, nearest.dist)
         else
-            compactNearbyLabel.Text = "Nearby: None"
+            compactNearbyLabel.Text = "None"
             compactNearbyLabel.TextColor3 = Color3.new(1,1,1)
         end
     else
@@ -869,14 +869,15 @@ NearbyListLayout.Padding = UDim.new(0, 1)
 
 -- Create compact nearby label
 compactNearbyLabel = Instance.new("TextLabel", NearbyFrame)
-compactNearbyLabel.Size = UDim2.new(1, -4, 1, -12)
-compactNearbyLabel.Position = UDim2.new(0, 2, 0, 12)
+compactNearbyLabel.Size = UDim2.new(1, -4, 1, -4)
+compactNearbyLabel.Position = UDim2.new(0, 2, 0, 2)
 compactNearbyLabel.BackgroundTransparency = 1
-compactNearbyLabel.Text = "Nearby: None"
+compactNearbyLabel.Text = "None"
 compactNearbyLabel.TextColor3 = Color3.new(1, 1, 1)
 compactNearbyLabel.Font = Enum.Font.SourceSansBold
 compactNearbyLabel.TextSize = 10
-compactNearbyLabel.TextXAlignment = Enum.TextXAlignment.Left
+compactNearbyLabel.TextYAlignment = Enum.TextYAlignment.Center
+compactNearbyLabel.TextXAlignment = Enum.TextXAlignment.Center
 compactNearbyLabel.Visible = false
 
 -- InputFrame (Distance Settings)
@@ -1252,8 +1253,11 @@ local function createSizeToggleBtn(frame)
                 if rarityFullNames[rarity] then
                     rarityFullNames[rarity].Text = rarityAbbreviations[rarity] or rarity
                     rarityFullNames[rarity].TextSize = 9
+                    rarityFullNames[rarity].Size = UDim2.new(1, 0, 0, 12) -- Reduced height
                 end
             end
+            
+            LegendListLayout.Padding = UDim.new(0, 0) -- Remove spacing
             
             for i, label in ipairs(inputLabelsTbl) do
                 label.TextSize = 8
@@ -1288,6 +1292,7 @@ local function createSizeToggleBtn(frame)
             NearbyScroll.Visible = false
             NearbyLabel.Visible = false
             compactNearbyLabel.Visible = true
+            compactNearbyLabel.Text = "None" -- Reset text
 
             -- Adjust size toggle button for compact mode
             btn.Size = UDim2.new(0, 18, 0, 18) -- Smaller in compact mode
@@ -1324,8 +1329,11 @@ local function createSizeToggleBtn(frame)
                 if rarityFullNames[rarity] then
                     rarityFullNames[rarity].Text = rarity
                     rarityFullNames[rarity].TextSize = 12
+                    rarityFullNames[rarity].Size = UDim2.new(1, 0, 0, 14) -- Restore height
                 end
             end
+            
+            LegendListLayout.Padding = UDim.new(0, 2) -- Restore spacing
             
             for i, label in ipairs(inputLabelsTbl) do
                 label.TextSize = 11
@@ -1375,7 +1383,6 @@ local SizeToggleBtn = createSizeToggleBtn(Frame)
 for i = 1, 20 do
     getESPFromPool()
 end
-
 -- Initial cache update
 updatePlantCache()
 
