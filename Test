@@ -9,86 +9,71 @@ local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- === OPTIMIZED CONFIG ===
-local maxDistance = 12
-local maxESP = 2
-local nearbyDistance = 8
-local updateInterval = 3.5
-local plantCheckDelay = 45
-local nearbyUpdateInterval = 2.5
-local maxNearbyPlants = 8
-local cacheUpdateInterval = 15
+-- === CONFIG ===
+local maxDistance = 25
+local maxESP = 3
+local nearbyDistance = 15
+local updateInterval = 2.5
+local plantCheckDelay = 30
+local nearbyUpdateInterval = 1.8
+local maxNearbyPlants = 20
 
 -- === PERFORMANCE OPTIMIZATION ===
 local lastDescendantsUpdate = 0
-local plantCache = {}
+local cacheValidity = 25
 local lastNearbyUpdate = 0
-
--- === PLANT CACHING SYSTEM ===
-local function updatePlantCache()
-    if tick() - lastDescendantsUpdate < cacheUpdateInterval then return end
-    lastDescendantsUpdate = tick()
-    
-    plantCache = {}
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:IsA("Model") and cropSet[obj.Name:lower()] then
-            table.insert(plantCache, obj)
-        end
-    end
-end
+local plantCache = {}
+local cacheExpiry = 0
 
 -- === NOTIFICATION SYSTEM ===
-local notificationPool
 local function showNotification(message)
-    if notificationPool and notificationPool.Parent then
-        notificationPool.Visible = true
-        notificationPool.TextLabel.Text = message
-    else
-        local screenGui = LocalPlayer.PlayerGui:FindFirstChild("PlantESPSelector")
-        if not screenGui then return end
-        
-        notificationPool = Instance.new("Frame")
-        notificationPool.Name = "Notification"
-        notificationPool.Size = UDim2.new(0, 300, 0, 50)
-        notificationPool.Position = UDim2.new(0.5, -150, 0.1, 0)
-        notificationPool.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        notificationPool.BackgroundTransparency = 0.3
-        notificationPool.BorderSizePixel = 0
-        notificationPool.ZIndex = 100
-        notificationPool.Visible = false
-        notificationPool.Parent = screenGui
-        
-        local corner = Instance.new("UICorner", notificationPool)
-        corner.CornerRadius = UDim.new(0, 8)
-        
-        local stroke = Instance.new("UIStroke", notificationPool)
-        stroke.Color = Color3.fromRGB(255, 50, 50)
-        stroke.Thickness = 2
-        
-        local label = Instance.new("TextLabel", notificationPool)
-        label.Name = "TextLabel"
-        label.Size = UDim2.new(1, -10, 1, -10)
-        label.Position = UDim2.new(0, 5, 0, 5)
-        label.BackgroundTransparency = 1
-        label.Text = message
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize = 18
-        label.TextWrapped = true
+    local screenGui = LocalPlayer.PlayerGui:FindFirstChild("PlantESPSelector")
+    if not screenGui then return end
+    
+    for _, obj in ipairs(screenGui:GetChildren()) do
+        if obj.Name == "Notification" then
+            obj:Destroy()
+        end
     end
-
-    notificationPool.BackgroundTransparency = 1
-    notificationPool.TextLabel.TextTransparency = 1
-    notificationPool.Visible = true
-
+    
+    local notification = Instance.new("Frame")
+    notification.Name = "Notification"
+    notification.Size = UDim2.new(0, 300, 0, 50)
+    notification.Position = UDim2.new(0.5, -150, 0.1, 0)
+    notification.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    notification.BackgroundTransparency = 0.3
+    notification.BorderSizePixel = 0
+    notification.ZIndex = 100
+    notification.Parent = screenGui
+    
+    local corner = Instance.new("UICorner", notification)
+    corner.CornerRadius = UDim.new(0, 8)
+    
+    local stroke = Instance.new("UIStroke", notification)
+    stroke.Color = Color3.fromRGB(255, 50, 50)
+    stroke.Thickness = 2
+    
+    local label = Instance.new("TextLabel", notification)
+    label.Size = UDim2.new(1, -10, 1, -10)
+    label.Position = UDim2.new(0, 5, 0, 5)
+    label.BackgroundTransparency = 1
+    label.Text = message
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextSize = 18
+    label.TextWrapped = true
+    
+    notification.BackgroundTransparency = 1
+    label.TextTransparency = 1
+    
     local fadeIn = TweenService:Create(
-        notificationPool,
+        notification,
         TweenInfo.new(0.5),
         {BackgroundTransparency = 0.3}
     )
     
     local textFadeIn = TweenService:Create(
-        notificationPool.TextLabel,
+        label,
         TweenInfo.new(0.5),
         {TextTransparency = 0}
     )
@@ -96,27 +81,25 @@ local function showNotification(message)
     fadeIn:Play()
     textFadeIn:Play()
     
-    task.delay(3, function()
-        if notificationPool and notificationPool.Parent then
-            local fadeOut = TweenService:Create(
-                notificationPool,
-                TweenInfo.new(0.5),
-                {BackgroundTransparency = 1}
-            )
-            
-            local textFadeOut = TweenService:Create(
-                notificationPool.TextLabel,
-                TweenInfo.new(0.5),
-                {TextTransparency = 1}
-            )
-            
-            fadeOut:Play()
-            textFadeOut:Play()
-            
-            fadeOut.Completed:Wait()
-            notificationPool.Visible = false
-        end
-    end)
+    wait(3)
+    
+    local fadeOut = TweenService:Create(
+        notification,
+        TweenInfo.new(0.5),
+        {BackgroundTransparency = 1}
+    )
+    
+    local textFadeOut = TweenService:Create(
+        label,
+        TweenInfo.new(0.5),
+        {TextTransparency = 1}
+    )
+    
+    fadeOut:Play()
+    textFadeOut:Play()
+    
+    fadeOut.Completed:Wait()
+    notification:Destroy()
 end
 
 -- === CROP CATEGORIES & COLORS ===
@@ -140,21 +123,11 @@ local cropCategories = {
     }
 }
 
--- Create lookup table with original case names
-local originalCaseMap = {}
-for _, rarities in pairs(cropCategories) do
-    for _, crops in pairs(rarities) do
-        for _, crop in ipairs(crops) do
-            originalCaseMap[crop:lower()] = crop
-        end
-    end
-end
-
 local cropSet = {}
 for obtain, rarities in pairs(cropCategories) do
     for rarity, crops in pairs(rarities) do
         for _, crop in ipairs(crops) do
-            cropSet[crop:lower()] = {obtain=obtain, rarity=rarity, original=crop}
+            cropSet[crop:lower()] = {obtain=obtain, rarity=rarity}
         end
     end
 end
@@ -176,32 +149,53 @@ if ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:Fin
     CalculatePlantValue = require(ReplicatedStorage.Modules.CalculatePlantValue)
 end
 
--- === OPTIMIZED UTILITY FUNCTIONS ===
+-- === UTILITY FUNCTIONS ===
 local function getPP(model)
-    return model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    if model.PrimaryPart then return model.PrimaryPart end
+    for _, c in ipairs(model:GetChildren()) do
+        if c:IsA("BasePart") then
+            model.PrimaryPart = c
+            return c
+        end
+    end
+    return nil
 end
 
--- === ADD MISSING VALUES WITH CACHE ===
+-- === PLANT CACHE MANAGEMENT ===
+local function updatePlantCache()
+    if tick() - cacheExpiry < cacheValidity then return end
+    
+    plantCache = {}
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and cropSet[model.Name:lower()] then
+            plantCache[model] = true
+        end
+    end
+    cacheExpiry = tick()
+end
+
+-- === ADD MISSING VALUES TO PLANT MODELS ===
 spawn(function()
     while task.wait(plantCheckDelay) do
-        updatePlantCache()
-        for _, model in ipairs(plantCache) do
-            if not model:FindFirstChild("Item_String") then
-                local itemString = Instance.new("StringValue", model)
-                itemString.Name = "Item_String"
-                itemString.Value = model.Name
-            end
+        for model in pairs(plantCache) do
+            if model:IsA("Model") and model.Parent then
+                if not model:FindFirstChild("Item_String") then
+                    local itemString = Instance.new("StringValue", model)
+                    itemString.Name = "Item_String"
+                    itemString.Value = model.Name
+                end
 
-            if not model:FindFirstChild("Variant") then
-                local variant = Instance.new("StringValue", model)
-                variant.Name = "Variant"
-                variant.Value = "Normal"
-            end
+                if not model:FindFirstChild("Variant") then
+                    local variant = Instance.new("StringValue", model)
+                    variant.Name = "Variant"
+                    variant.Value = "Normal"
+                end
 
-            if not model:FindFirstChild("Weight") then
-                local weight = Instance.new("NumberValue", model)
-                weight.Name = "Weight"
-                weight.Value = 3.4
+                if not model:FindFirstChild("Weight") then
+                    local weight = Instance.new("NumberValue", model)
+                    weight.Name = "Weight"
+                    weight.Value = 3.4
+                end
             end
         end
     end
@@ -217,34 +211,26 @@ local function formatPriceWithCommas(n)
     return formatted .. "$"
 end
 
--- === ESP CREATION ===
-local espMap = {}
-local lastUpdate = 0
+-- === ESP POOLING SYSTEM ===
+local espPool = {}
+local activeESP = {}
 
-local function createESP(model, labelText)
-    -- Reuse existing ESP if possible
-    local existingESP = model:FindFirstChild("PlantESP")
-    if existingESP then
-        local textLabel = existingESP:FindFirstChildWhichIsA("TextLabel")
-        if textLabel then
-            textLabel.Text = labelText
-            espMap[model] = textLabel
-            return textLabel
+local function getESPFromPool()
+    for _, gui in ipairs(espPool) do
+        if not gui.Parent then
+            return gui
         end
     end
-
-    local pp = getPP(model)
-    if not pp then return end
-
-    local bg = Instance.new("BillboardGui", model)
+    
+    local bg = Instance.new("BillboardGui")
     bg.Name = "PlantESP"
-    bg.Adornee = pp
     bg.Size = UDim2.new(0, 200, 0, 16)
     bg.StudsOffset = Vector3.new(0, 4, 0)
     bg.AlwaysOnTop = true
-    bg.MaxDistance = 80
-
-    local tl = Instance.new("TextLabel", bg)
+    bg.MaxDistance = 100
+    bg.Enabled = false
+    
+    local tl = Instance.new("TextLabel")
     tl.Size = UDim2.new(1, 0, 1, 0)
     tl.BackgroundTransparency = 1
     tl.TextColor3 = Color3.new(1, 1, 1)
@@ -252,87 +238,99 @@ local function createESP(model, labelText)
     tl.TextSize = 10
     tl.TextWrapped = false
     tl.RichText = true
-    tl.Text = labelText
     tl.TextStrokeColor3 = Color3.new(0, 0, 0)
     tl.TextStrokeTransparency = 0.3
     tl.TextXAlignment = Enum.TextXAlignment.Center
-
-    espMap[model] = tl
-    return tl
+    tl.Parent = bg
+    
+    table.insert(espPool, bg)
+    return bg
 end
 
-local function cleanup(validModels)
-    for model, gui in pairs(espMap) do
-        if not validModels[model] and gui.Parent then
-            gui:Destroy()
-            espMap[model] = nil
+local function createESP(model, labelText)
+    local existing = activeESP[model]
+    if existing then
+        existing.TextLabel.Text = labelText
+        return existing
+    end
+    
+    local bg = getESPFromPool()
+    bg.Adornee = getPP(model)
+    bg.Enabled = true
+    bg.Parent = model
+    bg.TextLabel.Text = labelText
+    
+    activeESP[model] = bg
+    return bg
+end
+
+local function cleanupESP()
+    for model, gui in pairs(activeESP) do
+        if not plantCache[model] or not model.Parent then
+            gui.Enabled = false
+            gui.Parent = nil
+            activeESP[model] = nil
         end
     end
-    collectgarbage("step", 256)
 end
 
 -- === OPTIMIZED NEARBY PLANTS DISPLAY ===
 local NearbyFrame
 local NearbyScroll
-local nearbyLabels = {}
-local nearbyList = table.create(maxNearbyPlants)
+local nearbyLabels = {} -- Store labels for reuse
 
 local function updateNearbyPlants()
-    if not NearbyScroll or tick() - lastNearbyUpdate < nearbyUpdateInterval then 
-        return 
-    end
-    lastNearbyUpdate = tick()
+    if not NearbyScroll then return end
+    
+    local currentTime = tick()
+    if currentTime - lastNearbyUpdate < nearbyUpdateInterval then return end
+    lastNearbyUpdate = currentTime
 
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    -- Reset list
-    for i = 1, maxNearbyPlants do
-        nearbyList[i] = nil
-    end
-    
-    local foundCount = 0
-    local maxDistSq = nearbyDistance * nearbyDistance
-    
-    for _, model in ipairs(plantCache) do
-        local pp = getPP(model)
-        if pp then
-            local distSq = (pp.Position - root.Position).MagnitudeSquared
-            if distSq <= maxDistSq then
-                foundCount += 1
-                nearbyList[foundCount] = {model=model, dist=math.sqrt(distSq)}
-                if foundCount >= maxNearbyPlants then break end
+    -- Find nearby plants using cache
+    local found = {}
+    for model in pairs(plantCache) do
+        if model.Parent then
+            local pp = getPP(model)
+            if pp then
+                local dist = (pp.Position - root.Position).Magnitude
+                if dist <= nearbyDistance then
+                    table.insert(found, {model=model, dist=dist})
+                end
             end
         end
     end
 
-    if foundCount > maxNearbyPlants then
-        table.sort(nearbyList, function(a,b) return a.dist < b.dist end)
+    table.sort(found, function(a,b) return a.dist < b.dist end)
+
+    -- Reuse existing labels
+    for i, entry in ipairs(found) do
+        local label = nearbyLabels[i]
+        if not label then
+            label = Instance.new("TextLabel", NearbyScroll)
+            label.Size = UDim2.new(1, -4, 0, 14)
+            label.BackgroundTransparency = 1
+            label.TextWrapped = false
+            label.TextScaled = false
+            label.ClipsDescendants = false
+            label.Font = Enum.Font.SourceSansBold
+            label.TextSize = 10
+            nearbyLabels[i] = label
+        end
+        
+        local cropInfo = cropSet[entry.model.Name:lower()]
+        local rarity = cropInfo and cropInfo.rarity or "Common"
+        label.TextColor3 = rarityColors[rarity] or Color3.new(1,1,1)
+        label.Text = string.format("%s (%.1f)", entry.model.Name, entry.dist)
+        label.Visible = true
     end
 
-    for i = 1, maxNearbyPlants do
-        local data = nearbyList[i]
-        if data then
-            local label = nearbyLabels[i]
-            if not label then
-                label = Instance.new("TextLabel", NearbyScroll)
-                label.Size = UDim2.new(1, -4, 0, 14)
-                label.BackgroundTransparency = 1
-                label.TextWrapped = false
-                label.Font = Enum.Font.SourceSansBold
-                label.TextSize = 10
-                nearbyLabels[i] = label
-            end
-            
-            -- Use original case name for display
-            local originalName = originalCaseMap[data.model.Name:lower()] or data.model.Name
-            local cropInfo = cropSet[data.model.Name:lower()]
-            local rarity = cropInfo and cropInfo.rarity or "Common"
-            label.TextColor3 = rarityColors[rarity] or Color3.new(1,1,1)
-            label.Text = string.format("%s (%.1f)", originalName, data.dist)
-            label.Visible = true
-        elseif nearbyLabels[i] then
+    -- Hide extra labels
+    for i = #found + 1, #nearbyLabels do
+        if nearbyLabels[i] then
             nearbyLabels[i].Visible = false
         end
     end
@@ -340,51 +338,44 @@ end
 -- === MAIN UPDATE LOOP ===
 local selectedTypes = {}
 for _, v in pairs(cropSet) do
-    selectedTypes[v.original:lower()] = true
+    selectedTypes[v] = true
 end
 
-local function update()
+local lastUpdate = 0
+local function updateESP()
     local currentTime = tick()
     if currentTime - lastUpdate < updateInterval then return end
     lastUpdate = currentTime
+    
     updatePlantCache()
-
-    local validModels = {}
+    cleanupESP()
+    
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return end
 
-    local nearest = table.create(maxESP * 2)
-    local foundCount = 0
-    local maxDistSq = maxDistance * maxDistance
-    
-    for _, model in ipairs(plantCache) do
-        -- Use lower case for comparison
-        if selectedTypes[model.Name:lower()] then
+    local plants = {}
+    for model in pairs(plantCache) do
+        if model.Parent and selectedTypes[model.Name] then
             local pp = getPP(model)
             if pp then
-                local distSq = (pp.Position - root.Position).MagnitudeSquared
-                if distSq <= maxDistSq then
-                    foundCount += 1
-                    nearest[foundCount] = {model=model, distSq=distSq}
-                    if foundCount >= maxESP * 2 then break end
+                local dist = (pp.Position - root.Position).Magnitude
+                if dist <= maxDistance then
+                    table.insert(plants, {model = model, dist = dist})
                 end
             end
         end
     end
 
-    if foundCount > maxESP then
-        table.sort(nearest, function(a,b) return a.distSq < b.distSq end)
-    end
+    table.sort(plants, function(a, b) return a.dist < b.dist end)
 
-    for i = 1, math.min(foundCount, maxESP) do
-        local model = nearest[i].model
-
+    for i = 1, math.min(#plants, maxESP) do
+        local data = plants[i]
+        local model = data.model
+        
         local weightObj = model:FindFirstChild("Weight")
         local weight = weightObj and weightObj.Value and string.format("%.1f", weightObj.Value) or "?"
 
-        -- Use original case name
-        local originalName = originalCaseMap[model.Name:lower()] or model.Name
         local cropInfo = cropSet[model.Name:lower()]
         local rarity = cropInfo and cropInfo.rarity or "Common"
         local color = rarityColors[rarity] or Color3.new(1,1,1)
@@ -403,23 +394,27 @@ local function update()
 
         local label = string.format(
             "<font color='%s'>%s</font> - %s kg - <font color='#50FF50'>%s</font>",
-            hexColor, originalName, weight, formattedPrice
+            hexColor, model.Name, weight, formattedPrice
         )
 
-        local espLabel = createESP(model, label)
-        if espLabel then
-            espLabel.RichText = true
-        end
-        validModels[model] = true
+        createESP(model, label)
     end
-
-    cleanup(validModels)
-    updateNearbyPlants()
+    updateNearbyPlants() -- Force update nearby plants
 end
 
--- === THROTTLED UPDATE LOOP ===
-RunService.Heartbeat:Connect(function()
-    pcall(update)
+-- === RUN EVERY SECOND ===
+local heartbeatConn
+heartbeatConn = RunService.Heartbeat:Connect(function()
+    pcall(updateESP)
+    pcall(updateNearbyPlants)
+end)
+
+-- Cleanup on script termination
+game:GetService("UserInputService").WindowFocused:Connect(function()
+    heartbeatConn:Disconnect()
+    for _, gui in ipairs(espPool) do
+        gui:Destroy()
+    end
 end)
 
 -- === UI SETUP ===
@@ -475,12 +470,8 @@ local DiscordStroke = Instance.new("UIStroke", DiscordBtn)
 DiscordStroke.Color = Color3.fromRGB(255, 50, 50)
 DiscordStroke.Thickness = 2
 
--- Discord button functionality with cooldown
-local lastDiscordClick = 0
+-- Discord button functionality
 DiscordBtn.MouseButton1Click:Connect(function()
-    if tick() - lastDiscordClick < 1 then return end
-    lastDiscordClick = tick()
-    
     pcall(function()
         showNotification("Joining PUNK TEAM Discord...")
         
@@ -738,8 +729,27 @@ for i, labelName in ipairs(inputLabels) do
     table.insert(inputBoxes, box)
 end
 
--- === TOGGLE BUTTONS WITH THROTTLING ===
-local lastToggleClick = 0
+-- === TOGGLE BUTTONS WITH ANIMATION ===
+local function getCategorizedTypes()
+    local cropsByCategory = {}
+    for obtain, rarities in pairs(cropCategories) do
+        cropsByCategory[obtain] = {}
+        for rarity, _ in pairs(rarities) do
+            cropsByCategory[obtain][rarity] = {}
+        end
+    end
+
+    for model in pairs(plantCache) do
+        if model.Parent then
+            local info = cropSet[model.Name:lower()]
+            if info then
+                cropsByCategory[info.obtain][info.rarity][model.Name] = true
+            end
+        end
+    end
+    return cropsByCategory
+end
+
 local function createToggles()
     for _, child in ipairs(ObtainScroll:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
@@ -748,34 +758,22 @@ local function createToggles()
         if child:IsA("TextButton") then child:Destroy() end
     end
 
-    -- Build crop lists using original case names
-    local cropsByCategory = {
-        Obtainable = {},
-        Unobtainable = {}
-    }
-    
-    for obtain, rarities in pairs(cropCategories) do
-        for rarity, crops in pairs(rarities) do
-            for _, cropName in ipairs(crops) do
-                cropsByCategory[obtain][rarity] = cropsByCategory[obtain][rarity] or {}
-                table.insert(cropsByCategory[obtain][rarity], cropName)
-            end
-        end
-    end
+    local cropsByCategory = getCategorizedTypes()
 
-    -- Function to create toggle buttons using original names
-    local function createCropToggleButton(parent, cropName, rarity)
+    -- Function to create toggle buttons with visual state
+    local function createCropToggleButton(parent, crop, rarity)
         local btn = Instance.new("TextButton", parent)
         btn.Size = UDim2.new(1, -4, 0, 14)
         btn.BackgroundColor3 = rarityColors[rarity] or Color3.fromRGB(50, 80, 50)
         btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.Text = cropName -- Use original case name
+        btn.Text = crop
         btn.AutoButtonColor = true
         btn.TextSize = 10
         btn.Font = Enum.Font.SourceSansBold
         
+        -- Visual state based on selection
         local function updateButtonAppearance()
-            if selectedTypes[cropName:lower()] then
+            if selectedTypes[crop] then
                 btn.BackgroundTransparency = 0.3
                 btn.TextTransparency = 0
             else
@@ -785,30 +783,33 @@ local function createToggles()
         end
         
         btn.MouseButton1Click:Connect(function()
-            if tick() - lastToggleClick < 0.3 then return end
-            lastToggleClick = tick()
-            selectedTypes[cropName:lower()] = not selectedTypes[cropName:lower()]
+            selectedTypes[crop] = not selectedTypes[crop]
             updateButtonAppearance()
         end)
         
+        -- Set initial appearance
         updateButtonAppearance()
         return btn
     end
 
     -- Create obtainable crop toggles
     for _, rarity in ipairs(rarityOrder) do
-        if cropsByCategory.Obtainable[rarity] then
-            for _, cropName in ipairs(cropsByCategory.Obtainable[rarity]) do
-                createCropToggleButton(ObtainScroll, cropName, rarity)
+        if cropCategories.Obtainable[rarity] then
+            for _, crop in ipairs(cropCategories.Obtainable[rarity]) do
+                if cropsByCategory.Obtainable[rarity][crop] then
+                    createCropToggleButton(ObtainScroll, crop, rarity)
+                end
             end
         end
     end
 
     -- Create unobtainable crop toggles
     for _, rarity in ipairs(rarityOrder) do
-        if cropsByCategory.Unobtainable[rarity] then
-            for _, cropName in ipairs(cropsByCategory.Unobtainable[rarity]) do
-                createCropToggleButton(UnobtainScroll, cropName, rarity)
+        if cropCategories.Unobtainable[rarity] then
+            for _, crop in ipairs(cropCategories.Unobtainable[rarity]) do
+                if cropsByCategory.Unobtainable[rarity][crop] then
+                    createCropToggleButton(UnobtainScroll, crop, rarity)
+                end
             end
         end
     end
@@ -822,16 +823,134 @@ spawn(function()
     end
 end)
 
--- Initialize Selected Types with lower case
+-- Initialize Selected Types
 for _, crop in ipairs(cropCategories.Obtainable.Common) do
-    selectedTypes[crop:lower()] = true
+    selectedTypes[crop] = true
 end
 for _, crop in ipairs(cropCategories.Unobtainable.Common) do
-    selectedTypes[crop:lower()] = true
+    selectedTypes[crop] = true
 end
 
--- === COMPACT MODE TOGGLE ===
-local lastResize = 0
+-- Toggle Button (Show/Hide UI)
+local function createToggleBtn(screenGui, frame)
+    if screenGui:FindFirstChild("ShowHideESPBtn") then
+        screenGui.ShowHideESPBtn:Destroy()
+    end
+
+    -- Main toggle button container
+    local ToggleBtn = Instance.new("ImageButton")
+    ToggleBtn.Name = "ShowHideESPBtn"
+    ToggleBtn.Parent = screenGui
+    ToggleBtn.Size = UDim2.new(0, 38, 0, 38)
+    ToggleBtn.Position = UDim2.new(0, 6, 0, 6)
+    ToggleBtn.BackgroundTransparency = 1
+    ToggleBtn.Image = "rbxassetid://131613009113138" -- Your Roblox asset ID
+    ToggleBtn.ZIndex = 100
+
+    -- Add circular background
+    local bg = Instance.new("Frame")
+    bg.Name = "Background"
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    bg.BackgroundTransparency = 0.15
+    bg.ZIndex = 99
+    bg.Parent = ToggleBtn
+    
+    -- Make background circular
+    local corner = Instance.new("UICorner", bg)
+    corner.CornerRadius = UDim.new(1, 0)
+    
+    -- Add border to background
+    local stroke = Instance.new("UIStroke", bg)
+    stroke.Color = Color3.fromRGB(255, 50, 50)
+    stroke.Thickness = 2
+    
+    -- Make toggle button movable
+    ToggleBtn.Active = true
+    ToggleBtn.Draggable = true
+
+    local uiVisible = true
+    frame.Visible = uiVisible
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        uiVisible = not uiVisible
+        frame.Visible = uiVisible
+        
+        -- Animation effects
+        local tweenInfo = TweenInfo.new(
+            0.3, -- Time
+            Enum.EasingStyle.Quint, -- Easing style
+            Enum.EasingDirection.Out, -- Easing direction
+            0, -- Repeat count
+            false, -- Reverses
+            0 -- Delay
+        )
+        
+        -- Scale animation
+        local scaleGoal = uiVisible and 1 or 0.8
+        local scaleTween = TweenService:Create(
+            ToggleBtn,
+            tweenInfo,
+            {Size = UDim2.new(0, 38 * scaleGoal, 0, 38 * scaleGoal)}
+        )
+        
+        -- Rotation animation
+        local rotationTween = TweenService:Create(
+            ToggleBtn,
+            tweenInfo,
+            {Rotation = uiVisible and 0 or 180}
+        )
+        
+        -- Color pulse effect
+        local pulseColor = uiVisible and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+        local colorTween = TweenService:Create(
+            stroke,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Color = pulseColor}
+        )
+        
+        -- Play animations
+        scaleTween:Play()
+        rotationTween:Play()
+        colorTween:Play()
+        
+        -- Reset color after pulse
+        task.spawn(function()
+            wait(0.3)
+            local resetTween = TweenService:Create(
+                stroke,
+                TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                {Color = Color3.fromRGB(255, 50, 50)}
+            )
+            resetTween:Play()
+        end)
+    end)
+
+    -- Hover effects
+    ToggleBtn.MouseEnter:Connect(function()
+        local tween = TweenService:Create(
+            bg,
+            TweenInfo.new(0.2),
+            {BackgroundTransparency = 0}
+        )
+        tween:Play()
+    end)
+
+    ToggleBtn.MouseLeave:Connect(function()
+        local tween = TweenService:Create(
+            bg,
+            TweenInfo.new(0.2),
+            {BackgroundTransparency = 0.15}
+        )
+        tween:Play()
+    end)
+
+    return ToggleBtn
+end
+
+local ToggleBtn = createToggleBtn(ScreenGui, Frame)
+
+-- Compact Mode Toggle
 local function createSizeToggleBtn(frame)
     if frame:FindFirstChild("SizeToggleBtn") then
         frame.SizeToggleBtn:Destroy()
@@ -864,14 +983,141 @@ local function createSizeToggleBtn(frame)
     local compact = false
 
     btn.MouseButton1Click:Connect(function()
-        if tick() - lastResize < 0.5 then return end
-        lastResize = tick()
-        
         compact = not compact
         if compact then
-            -- Compact mode UI adjustments...
+            frame.Size = UDim2.new(0, 160, 0, 160)
+            frame.Position = UDim2.new(0, 10, 0, 20)
+            LegendCol.Size = UDim2.new(0, 50, 0, 100)
+            LegendCol.Position = UDim2.new(0, 0, 0, 22)
+            ObtainCol.Size = UDim2.new(0, 50, 0, 100)
+            ObtainCol.Position = UDim2.new(0, 50, 0, 22)
+            UnobtainCol.Size = UDim2.new(0, 50, 0, 100)
+            UnobtainCol.Position = UDim2.new(0, 100, 0, 22)
+            NearbyFrame.Size = UDim2.new(0, 150, 0, 18)
+            NearbyFrame.Position = UDim2.new(0, 0, 1, -38)
+            InputFrame.Size = UDim2.new(0, 150, 0, 16)
+            InputFrame.Position = UDim2.new(0, 0, 1, -20)
+            
+            DiscordBtn.Size = UDim2.new(0, 50, 0, 15)
+            DiscordBtn.TextSize = 8
+            DiscordBtn.Position = UDim2.new(0, 2, 0.5, -7.5)
+            Title.Text = "PUNK TEAM ESP"
+            Title.TextSize = 10
+            Title.Position = UDim2.new(0, 52, 0, 0)
+            Title.Size = UDim2.new(1, -55, 1, 0)
+
+            LegendLabel.TextSize = 9
+            ObtainLabel.TextSize = 9
+            UnobtainLabel.TextSize = 9
+            NearbyLabel.TextSize = 8
+            
+            local rarityAbbreviations = {
+                Common = "Com",
+                Uncommon = "Unc",
+                Rare = "Rare",
+                Legendary = "Leg",
+                Mythical = "Myth",
+                Divine = "Div",
+                Prismatic = "Prism"
+            }
+            
+            for _, rarity in ipairs(rarityOrder) do
+                if rarityFullNames[rarity] then
+                    rarityFullNames[rarity].Text = rarityAbbreviations[rarity] or rarity
+                    rarityFullNames[rarity].TextSize = 9
+                end
+            end
+            
+            for i, label in ipairs(inputLabelsTbl) do
+                label.TextSize = 8
+            end
+            for i, box in ipairs(inputBoxes) do
+                box.TextSize = 10
+            end
+            for _, b in ipairs(ObtainScroll:GetChildren()) do
+                if b:IsA("TextButton") then
+                    b.TextSize = 8
+                    b.TextWrapped = true
+                end
+            end
+            for _, b in ipairs(UnobtainScroll:GetChildren()) do
+                if b:IsA("TextButton") then
+                    b.TextSize = 8
+                    b.TextWrapped = true
+                end
+            end
+
+            local colWidth = 150 / #inputLabels
+            for i, label in ipairs(inputLabelsTbl) do
+                label.Size = UDim2.new(0, colWidth, 0, 8)
+                label.Position = UDim2.new(0, (i-1)*colWidth, 0, 0)
+            end
+            for i, box in ipairs(inputBoxes) do
+                box.Size = UDim2.new(0, colWidth - 4, 0, 12)
+                box.Position = UDim2.new(0, (i-1)*colWidth + 2, 0, 8)
+            end
         else
-            -- Normal mode UI adjustments...
+            frame.Size = UDim2.new(0, 340, 0, 250)
+            frame.Position = UDim2.new(0, 10, 0, 60)
+            LegendCol.Size = UDim2.new(0, 65, 0, 174)
+            LegendCol.Position = UDim2.new(0, 0, 0, 22)
+            ObtainCol.Size = UDim2.new(0, 120, 0, 174)
+            ObtainCol.Position = UDim2.new(0, 65, 0, 22)
+            UnobtainCol.Size = UDim2.new(0, 120, 0, 174)
+            UnobtainCol.Position = UDim2.new(0, 185, 0, 22)
+            NearbyFrame.Size = UDim2.new(0, 275, 0, 24)
+            NearbyFrame.Position = UDim2.new(0, 65, 1, -76)
+            InputFrame.Size = UDim2.new(0, 275, 0, 30)
+            InputFrame.Position = UDim2.new(0, 65, 1, -42)
+            
+            DiscordBtn.Size = UDim2.new(0, 60, 0, 18)
+            DiscordBtn.TextSize = 10
+            DiscordBtn.Position = UDim2.new(0, 4, 0.5, -9)
+            Title.Text = "PUNK TEAM Grow Garden ESP"
+            Title.TextSize = 14
+            Title.Position = UDim2.new(0, 70, 0, 0)
+            Title.Size = UDim2.new(1, -80, 1, 0)
+
+            LegendLabel.TextSize = 12
+            ObtainLabel.TextSize = 12
+            UnobtainLabel.TextSize = 12
+            NearbyLabel.TextSize = 11
+            
+            for _, rarity in ipairs(rarityOrder) do
+                if rarityFullNames[rarity] then
+                    rarityFullNames[rarity].Text = rarity
+                    rarityFullNames[rarity].TextSize = 12
+                end
+            end
+            
+            for i, label in ipairs(inputLabelsTbl) do
+                label.TextSize = 11
+            end
+            for i, box in ipairs(inputBoxes) do
+                box.TextSize = 12
+            end
+            for _, b in ipairs(ObtainScroll:GetChildren()) do
+                if b:IsA("TextButton") then
+                    b.TextSize = 10
+                    b.TextWrapped = false
+                end
+            end
+            for _, b in ipairs(UnobtainScroll:GetChildren()) do
+                if b:IsA("TextButton") then
+                    b.TextSize = 10
+                    b.TextWrapped = false
+                end
+            end
+
+            local colWidth = 275 / #inputLabels
+            for i, label in ipairs(inputLabelsTbl) do
+                label.Size = UDim2.new(0, colWidth, 0, 12)
+                label.Position = UDim2.new(0, (i-1)*colWidth, 0, 0)
+            end
+            for i, box in ipairs(inputBoxes) do
+                box.Size = UDim2.new(0, colWidth - 4, 0, 16)
+                box.Position = UDim2.new(0, (i-1)*colWidth + 2, 0, 12)
+            end
         end
     end)
     return btn
@@ -879,23 +1125,17 @@ end
 
 local SizeToggleBtn = createSizeToggleBtn(Frame)
 
--- === TOGGLE BUTTON (SHOW/HIDE UI) ===
-local function createToggleBtn(screenGui, frame)
-    if screenGui:FindFirstChild("ShowHideESPBtn") then
-        screenGui.ShowHideESPBtn:Destroy()
-    end
-
-    local ToggleBtn = Instance.new("ImageButton")
-    ToggleBtn.Name = "ShowHideESPBtn"
-    ToggleBtn.Parent = screenGui
-    ToggleBtn.Size = UDim2.new(0, 38, 0, 38)
-    ToggleBtn.Position = UDim2.new(0, 6, 0, 6)
-    ToggleBtn.BackgroundTransparency = 1
-    ToggleBtn.Image = "rbxassetid://131613009113138"
-    ToggleBtn.ZIndex = 100
-
-    -- Toggle button functionality...
-    return ToggleBtn
+-- Pre-create ESP pool
+for i = 1, 20 do
+    getESPFromPool()
 end
 
-local ToggleBtn = createToggleBtn(ScreenGui, Frame)
+-- Initial cache update
+updatePlantCache()
+
+-- Periodic cache refresh
+task.spawn(function()
+    while task.wait(10) do
+        updatePlantCache()
+    end
+end)
