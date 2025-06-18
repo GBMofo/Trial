@@ -102,6 +102,182 @@ local function showNotification(message)
     notification:Destroy()
 end
 
+-- === STARTUP POPUP ===
+local firstTimePopupShown = false
+local function showStartupPopup()
+    if firstTimePopupShown then return end
+    firstTimePopupShown = true
+    
+    local screenGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("PlantESPSelector")
+    if not screenGui then return end
+    
+    -- Create main popup container
+    local popup = Instance.new("Frame")
+    popup.Name = "StartupPopup"
+    popup.Size = UDim2.new(0, 500, 0, 300)
+    popup.Position = UDim2.new(0.5, -250, 0.5, -150)
+    popup.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    popup.BackgroundTransparency = 0.15
+    popup.ZIndex = 200
+    popup.Parent = screenGui
+    
+    -- Add modern styling
+    local corner = Instance.new("UICorner", popup)
+    corner.CornerRadius = UDim.new(0, 12)
+    
+    local stroke = Instance.new("UIStroke", popup)
+    stroke.Color = Color3.fromRGB(255, 50, 50)
+    stroke.Thickness = 3
+    stroke.Transparency = 0
+    
+    -- Add glow effect
+    local glow = Instance.new("ImageLabel", popup)
+    glow.Size = UDim2.new(1, 20, 1, 20)
+    glow.Position = UDim2.new(0, -10, 0, -10)
+    glow.Image = "rbxassetid://5028857084"
+    glow.ImageColor3 = Color3.fromRGB(255, 50, 50)
+    glow.ScaleType = Enum.ScaleType.Slice
+    glow.SliceCenter = Rect.new(24, 24, 276, 276)
+    glow.BackgroundTransparency = 1
+    glow.ZIndex = 199
+    
+    -- Title text
+    local title = Instance.new("TextLabel", popup)
+    title.Size = UDim2.new(1, 0, 0, 60)
+    title.Position = UDim2.new(0, 0, 0, 20)
+    title.BackgroundTransparency = 1
+    title.Text = "PUNK TEAM ESP"
+    title.TextColor3 = Color3.fromRGB(255, 50, 50)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 36
+    title.ZIndex = 201
+    
+    -- Subtitle
+    local subtitle = Instance.new("TextLabel", popup)
+    subtitle.Size = UDim2.new(1, 0, 0, 30)
+    subtitle.Position = UDim2.new(0, 0, 0, 70)
+    subtitle.BackgroundTransparency = 1
+    subtitle.Text = "Initializing systems..."
+    subtitle.TextColor3 = Color3.fromRGB(200, 200, 200)
+    subtitle.Font = Enum.Font.Gotham
+    subtitle.TextSize = 22
+    subtitle.ZIndex = 201
+    
+    -- Countdown display
+    local countdown = Instance.new("TextLabel", popup)
+    countdown.Size = UDim2.new(0, 150, 0, 100)
+    countdown.Position = UDim2.new(0.5, -75, 0.5, -50)
+    countdown.BackgroundTransparency = 1
+    countdown.Text = "10"
+    countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+    countdown.Font = Enum.Font.GothamBlack
+    countdown.TextSize = 80
+    countdown.ZIndex = 201
+    
+    -- Loading bar container
+    local barContainer = Instance.new("Frame", popup)
+    barContainer.Size = UDim2.new(0.8, 0, 0, 20)
+    barContainer.Position = UDim2.new(0.1, 0, 0.8, 0)
+    barContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    barContainer.BorderSizePixel = 0
+    barContainer.ZIndex = 201
+    Instance.new("UICorner", barContainer).CornerRadius = UDim.new(0, 10)
+    
+    -- Loading bar fill
+    local barFill = Instance.new("Frame", barContainer)
+    barFill.Size = UDim2.new(0, 0, 1, 0)
+    barFill.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    barFill.BorderSizePixel = 0
+    barFill.ZIndex = 202
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(0, 10)
+    
+    -- Status text
+    local status = Instance.new("TextLabel", popup)
+    status.Size = UDim2.new(1, 0, 0, 20)
+    status.Position = UDim2.new(0, 0, 0.9, 0)
+    status.BackgroundTransparency = 1
+    status.Text = "Preparing ESP..."
+    status.TextColor3 = Color3.fromRGB(150, 150, 150)
+    status.Font = Enum.Font.Gotham
+    status.TextSize = 16
+    status.ZIndex = 201
+    
+    -- Animate entrance
+    popup.Size = UDim2.new(0, 10, 0, 10)
+    popup.Position = UDim2.new(0.5, -5, 0.5, -5)
+    popup.BackgroundTransparency = 1
+    
+    local resizeTween = TweenService:Create(
+        popup,
+        TweenInfo.new(0.8, Enum.EasingStyle.Quint),
+        {Size = UDim2.new(0, 500, 0, 300), Position = UDim2.new(0.5, -250, 0.5, -150)}
+    )
+    
+    local fadeTween = TweenService:Create(
+        popup,
+        TweenInfo.new(0.8),
+        {BackgroundTransparency = 0.15}
+    )
+    
+    resizeTween:Play()
+    fadeTween:Play()
+    
+    -- Countdown sequence
+    local timer = 10
+    for i = 10, 0, -1 do
+        countdown.Text = tostring(i)
+        barFill.Size = UDim2.new((10 - i)/10, 0, 1, 0)
+        
+        -- Pulsing effect
+        local pulse = TweenService:Create(
+            countdown,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true),
+            {TextColor3 = Color3.fromRGB(255, 100, 100)}
+        )
+        pulse:Play()
+        
+        status.Text = ({
+            "Loading core modules...",
+            "Scanning environment...",
+            "Caching plant data...",
+            "Optimizing performance...",
+            "Initializing UI systems...",
+            "Building ESP pool...",
+            "Connecting services...",
+            "Finalizing startup...",
+            "Almost ready...",
+            "Launching ESP..."
+        })[11 - i] or "Initialization complete!"
+        
+        wait(1)
+    end
+    
+    -- Completion animation
+    subtitle.Text = "ESP READY!"
+    status.Text = "Press the toggle button to begin"
+    countdown.Text = "GO!"
+    
+    local successPulse = TweenService:Create(
+        countdown,
+        TweenInfo.new(0.5, Enum.EasingStyle.Quint),
+        {TextColor3 = Color3.fromRGB(100, 255, 100), TextSize = 90}
+    )
+    successPulse:Play()
+    
+    wait(2)
+    
+    -- Fade out
+    local fadeOut = TweenService:Create(
+        popup,
+        TweenInfo.new(1.0, Enum.EasingStyle.Quint),
+        {BackgroundTransparency = 1, Size = UDim2.new(0, 600, 0, 0), Position = UDim2.new(0.5, -300, 0.5, 0)}
+    )
+    fadeOut:Play()
+    
+    fadeOut.Completed:Wait()
+    popup:Destroy()
+end
+
 -- === CROP CATEGORIES & COLORS ===
 local cropCategories = {
     Obtainable = {
@@ -833,7 +1009,6 @@ spawn(function()
         createToggles()
     end
 end)
-
 -- Toggle Button (Show/Hide UI)
 local function createToggleBtn(screenGui, frame)
     if screenGui:FindFirstChild("ShowHideESPBtn") then
@@ -874,6 +1049,9 @@ local function createToggleBtn(screenGui, frame)
 
     local uiVisible = true
     frame.Visible = uiVisible
+
+    -- Track if it's the first time opening the UI
+    local firstTimeOpen = true
 
     ToggleBtn.MouseButton1Click:Connect(function()
         uiVisible = not uiVisible
@@ -927,6 +1105,12 @@ local function createToggleBtn(screenGui, frame)
             )
             resetTween:Play()
         end)
+        
+        -- Show startup popup on first open
+        if uiVisible and firstTimeOpen then
+            firstTimeOpen = false
+            showStartupPopup()
+        end
     end)
 
     -- Hover effects
