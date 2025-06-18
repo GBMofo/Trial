@@ -24,6 +24,7 @@ local cacheValidity = 25
 local lastNearbyUpdate = 0
 local plantCache = {}
 local cacheExpiry = 0
+local isCompactMode = false -- Flag for compact mode
 
 -- === NOTIFICATION SYSTEM ===
 local function showNotification(message)
@@ -409,7 +410,7 @@ local function getESPFromPool()
     bg.MaxDistance = 100
     bg.Enabled = false
     
-    local tl = Instance.new("TextLabel")
+    local tl = Instance.new("TextLabel", bg)
     tl.Size = UDim2.new(1, 0, 1, 0)
     tl.BackgroundTransparency = 1
     tl.TextColor3 = Color3.new(1, 1, 1)
@@ -420,7 +421,6 @@ local function getESPFromPool()
     tl.TextStrokeColor3 = Color3.new(0, 0, 0)
     tl.TextStrokeTransparency = 0.3
     tl.TextXAlignment = Enum.TextXAlignment.Center
-    tl.Parent = bg
     
     table.insert(espPool, bg)
     return bg
@@ -458,6 +458,7 @@ end
 local NearbyFrame
 local NearbyScroll
 local nearbyLabels = {} -- Store labels for reuse
+local compactNearbyLabel -- For compact mode
 
 local function updateNearbyPlants()
     if not NearbyScroll then return end
@@ -486,36 +487,50 @@ local function updateNearbyPlants()
 
     table.sort(found, function(a,b) return a.dist < b.dist end)
 
-    -- Reuse existing labels
-    for i, entry in ipairs(found) do
-        local label = nearbyLabels[i]
-        if not label then
-            label = Instance.new("TextLabel", NearbyScroll)
-            label.Size = UDim2.new(1, -4, 0, 14)
-            label.BackgroundTransparency = 1
-            label.TextWrapped = false
-            label.TextScaled = false
-            label.ClipsDescendants = false
-            label.Font = Enum.Font.SourceSansBold
-            label.TextSize = 10
-            nearbyLabels[i] = label
+    if isCompactMode then
+        -- Compact mode: Show only the nearest crop
+        if #found > 0 then
+            local nearest = found[1]
+            local cropInfo = cropSet[nearest.model.Name:lower()]
+            local rarity = cropInfo and cropInfo.rarity or "Common"
+            local color = rarityColors[rarity] or Color3.new(1,1,1)
+            compactNearbyLabel.TextColor3 = color
+            compactNearbyLabel.Text = string.format("Nearby: %s (%.1f)", nearest.model.Name, nearest.dist)
+        else
+            compactNearbyLabel.Text = "Nearby: None"
+            compactNearbyLabel.TextColor3 = Color3.new(1,1,1)
         end
-        
-        local cropInfo = cropSet[entry.model.Name:lower()]
-        local rarity = cropInfo and cropInfo.rarity or "Common"
-        label.TextColor3 = rarityColors[rarity] or Color3.new(1,1,1)
-        label.Text = string.format("%s (%.1f)", entry.model.Name, entry.dist)
-        label.Visible = true
-    end
+    else
+        -- Normal mode: Multi-line display
+        for i, entry in ipairs(found) do
+            local label = nearbyLabels[i]
+            if not label then
+                label = Instance.new("TextLabel", NearbyScroll)
+                label.Size = UDim2.new(1, -4, 0, 14)
+                label.BackgroundTransparency = 1
+                label.TextWrapped = false
+                label.TextScaled = false
+                label.ClipsDescendants = false
+                label.Font = Enum.Font.SourceSansBold
+                label.TextSize = 10
+                nearbyLabels[i] = label
+            end
+            
+            local cropInfo = cropSet[entry.model.Name:lower()]
+            local rarity = cropInfo and cropInfo.rarity or "Common"
+            label.TextColor3 = rarityColors[rarity] or Color3.new(1,1,1)
+            label.Text = string.format("%s (%.1f)", entry.model.Name, entry.dist)
+            label.Visible = true
+        end
 
-    -- Hide extra labels
-    for i = #found + 1, #nearbyLabels do
-        if nearbyLabels[i] then
-            nearbyLabels[i].Visible = false
+        -- Hide extra labels
+        for i = #found + 1, #nearbyLabels do
+            if nearbyLabels[i] then
+                nearbyLabels[i].Visible = false
+            end
         end
     end
 end
-
 -- === MAIN UPDATE LOOP ===
 local selectedTypes = {}
 
@@ -852,6 +867,18 @@ NearbyScroll.ScrollBarThickness = 2
 local NearbyListLayout = Instance.new("UIListLayout", NearbyScroll)
 NearbyListLayout.Padding = UDim.new(0, 1)
 
+-- Create compact nearby label
+compactNearbyLabel = Instance.new("TextLabel", NearbyFrame)
+compactNearbyLabel.Size = UDim2.new(1, -4, 1, -12)
+compactNearbyLabel.Position = UDim2.new(0, 2, 0, 12)
+compactNearbyLabel.BackgroundTransparency = 1
+compactNearbyLabel.Text = "Nearby: None"
+compactNearbyLabel.TextColor3 = Color3.new(1, 1, 1)
+compactNearbyLabel.Font = Enum.Font.SourceSansBold
+compactNearbyLabel.TextSize = 10
+compactNearbyLabel.TextXAlignment = Enum.TextXAlignment.Left
+compactNearbyLabel.Visible = false
+
 -- InputFrame (Distance Settings)
 local InputFrame = Instance.new("Frame", Frame)
 InputFrame.Size = UDim2.new(0, 275, 0, 30)
@@ -1182,6 +1209,7 @@ local function createSizeToggleBtn(frame)
 
     btn.MouseButton1Click:Connect(function()
         compact = not compact
+        isCompactMode = compact  -- Set the flag here
         if compact then
             -- Adjust UI elements for compact mode
             frame.Size = UDim2.new(0, 160, 0, 160)
@@ -1192,8 +1220,8 @@ local function createSizeToggleBtn(frame)
             ObtainCol.Position = UDim2.new(0, 50, 0, 22)
             UnobtainCol.Size = UDim2.new(0, 50, 0, 100)
             UnobtainCol.Position = UDim2.new(0, 100, 0, 22)
-            NearbyFrame.Size = UDim2.new(0, 150, 0, 18)
-            NearbyFrame.Position = UDim2.new(0, 0, 1, -38)
+            NearbyFrame.Size = UDim2.new(0, 150, 0, 24)
+            NearbyFrame.Position = UDim2.new(0, 0, 1, -40)
             InputFrame.Size = UDim2.new(0, 150, 0, 16)
             InputFrame.Position = UDim2.new(0, 0, 1, -20)
             
@@ -1255,6 +1283,11 @@ local function createSizeToggleBtn(frame)
                 box.Size = UDim2.new(0, colWidth - 4, 0, 12)
                 box.Position = UDim2.new(0, (i-1)*colWidth + 2, 0, 8)
             end
+
+            -- Show/hide the appropriate nearby display
+            NearbyScroll.Visible = false
+            NearbyLabel.Visible = false
+            compactNearbyLabel.Visible = true
 
             -- Adjust size toggle button for compact mode
             btn.Size = UDim2.new(0, 18, 0, 18) -- Smaller in compact mode
@@ -1322,6 +1355,11 @@ local function createSizeToggleBtn(frame)
                 box.Size = UDim2.new(0, colWidth - 4, 0, 16)
                 box.Position = UDim2.new(0, (i-1)*colWidth + 2, 0, 12)
             end
+
+            -- Show/hide the appropriate nearby display
+            NearbyScroll.Visible = true
+            NearbyLabel.Visible = true
+            compactNearbyLabel.Visible = false
 
             -- Restore size toggle button
             btn.Size = UDim2.new(0, 22, 0, 22)
