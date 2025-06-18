@@ -167,7 +167,7 @@ local function showStartupPopup()
     -- Countdown display
     local countdown = Instance.new("TextLabel", popup)
     countdown.Size = UDim2.new(0, 150, 0, 100)
-    countdown.Position = UDim2.new(0.5, -75, 0, 80)
+    countdown.Position = UDim2.new(0.5, -75, 0, 105)
     countdown.BackgroundTransparency = 1
     countdown.Text = "10"
     countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -178,7 +178,7 @@ local function showStartupPopup()
     -- Loading bar container
     local barContainer = Instance.new("Frame", popup)
     barContainer.Size = UDim2.new(0.8, 0, 0, 20)
-    barContainer.Position = UDim2.new(0.1, 0, 0, 160)
+    barContainer.Position = UDim2.new(0.1, 0, 0, 150)
     barContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     barContainer.BorderSizePixel = 0
     barContainer.ZIndex = 201
@@ -195,7 +195,7 @@ local function showStartupPopup()
     -- Status text
     local status = Instance.new("TextLabel", popup)
     status.Size = UDim2.new(1, 0, 0, 20)
-    status.Position = UDim2.new(0, 0, 0, 195)
+    status.Position = UDim2.new(0, 0, 0, 185)
     status.BackgroundTransparency = 1
     status.Text = "Preparing ESP..."
     status.TextColor3 = Color3.fromRGB(150, 150, 150)
