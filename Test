@@ -258,15 +258,17 @@ local function showStartupPopup()
     subtitle.Text = "ESP READY!"
     status.Text = "Press the toggle button to begin"
     countdown.Text = "GO!"
-    
+
+    -- Move GO! up and make it a bit smaller to avoid overlap
+    countdown.Position = UDim2.new(0.5, -75, 0, 80)    -- Move up (was 100)
     local successPulse = TweenService:Create(
-        countdown,
-        TweenInfo.new(0.5, Enum.EasingStyle.Quint),
-        {TextColor3 = Color3.fromRGB(100, 255, 100), TextSize = 90}
+    countdown,
+    TweenInfo.new(0.5, Enum.EasingStyle.Quint),
+    {TextColor3 = Color3.fromRGB(100, 255, 100), TextSize = 50} -- Smaller size
     )
     successPulse:Play()
-    
     wait(2)
+
     
     -- Fade out
     local fadeOut = TweenService:Create(
