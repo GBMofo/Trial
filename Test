@@ -336,10 +336,16 @@ local function updateNearbyPlants()
         end
     end
 end
+
 -- === MAIN UPDATE LOOP ===
 local selectedTypes = {}
-for crop in pairs(cropSet) do
-    selectedTypes[crop] = true
+
+-- Initialize only common crops to be selected by default
+for _, crop in ipairs(cropCategories.Obtainable.Common) do
+    selectedTypes[crop:lower()] = true
+end
+for _, crop in ipairs(cropCategories.Unobtainable.Common) do
+    selectedTypes[crop:lower()] = true
 end
 
 local lastUpdate = 0
@@ -407,7 +413,6 @@ local function updateESP()
     cleanupESP(validModels)
     updateNearbyPlants() -- Force update nearby plants
 end
-
 -- === RUN EVERY SECOND ===
 local heartbeatConn
 heartbeatConn = RunService.Heartbeat:Connect(function()
@@ -828,14 +833,6 @@ spawn(function()
         createToggles()
     end
 end)
-
--- Initialize Selected Types
-for _, crop in ipairs(cropCategories.Obtainable.Common) do
-    selectedTypes[crop:lower()] = true
-end
-for _, crop in ipairs(cropCategories.Unobtainable.Common) do
-    selectedTypes[crop:lower()] = true
-end
 
 -- Toggle Button (Show/Hide UI)
 local function createToggleBtn(screenGui, frame)
