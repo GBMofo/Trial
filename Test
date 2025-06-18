@@ -264,9 +264,10 @@ local function createESP(model, labelText)
     return bg
 end
 
-local function cleanupESP()
+-- Updated cleanup function to handle deselected crops
+local function cleanupESP(validModels)
     for model, gui in pairs(activeESP) do
-        if not plantCache[model] or not model.Parent then
+        if not validModels[model] then
             gui.Enabled = false
             gui.Parent = nil
             activeESP[model] = nil
@@ -337,8 +338,8 @@ local function updateNearbyPlants()
 end
 -- === MAIN UPDATE LOOP ===
 local selectedTypes = {}
-for _, v in pairs(cropSet) do
-    selectedTypes[v] = true
+for crop in pairs(cropSet) do
+    selectedTypes[crop] = true
 end
 
 local lastUpdate = 0
@@ -348,7 +349,6 @@ local function updateESP()
     lastUpdate = currentTime
     
     updatePlantCache()
-    cleanupESP()
     
     local char = LocalPlayer.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -356,7 +356,7 @@ local function updateESP()
 
     local plants = {}
     for model in pairs(plantCache) do
-        if model.Parent and selectedTypes[model.Name] then
+        if model.Parent and selectedTypes[model.Name:lower()] then
             local pp = getPP(model)
             if pp then
                 local dist = (pp.Position - root.Position).Magnitude
@@ -369,6 +369,8 @@ local function updateESP()
 
     table.sort(plants, function(a, b) return a.dist < b.dist end)
 
+    -- Create valid models set for cleanup
+    local validModels = {}
     for i = 1, math.min(#plants, maxESP) do
         local data = plants[i]
         local model = data.model
@@ -398,7 +400,11 @@ local function updateESP()
         )
 
         createESP(model, label)
+        validModels[model] = true
     end
+
+    -- Clean up ESP for deselected plants or beyond maxESP
+    cleanupESP(validModels)
     updateNearbyPlants() -- Force update nearby plants
 end
 
@@ -773,7 +779,7 @@ local function createToggles()
         
         -- Visual state based on selection
         local function updateButtonAppearance()
-            if selectedTypes[crop] then
+            if selectedTypes[crop:lower()] then
                 btn.BackgroundTransparency = 0.3
                 btn.TextTransparency = 0
             else
@@ -783,7 +789,7 @@ local function createToggles()
         end
         
         btn.MouseButton1Click:Connect(function()
-            selectedTypes[crop] = not selectedTypes[crop]
+            selectedTypes[crop:lower()] = not selectedTypes[crop:lower()]
             updateButtonAppearance()
         end)
         
@@ -825,10 +831,10 @@ end)
 
 -- Initialize Selected Types
 for _, crop in ipairs(cropCategories.Obtainable.Common) do
-    selectedTypes[crop] = true
+    selectedTypes[crop:lower()] = true
 end
 for _, crop in ipairs(cropCategories.Unobtainable.Common) do
-    selectedTypes[crop] = true
+    selectedTypes[crop:lower()] = true
 end
 
 -- Toggle Button (Show/Hide UI)
