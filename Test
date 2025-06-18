@@ -167,7 +167,7 @@ local function showStartupPopup()
     -- Countdown display
     local countdown = Instance.new("TextLabel", popup)
     countdown.Size = UDim2.new(0, 150, 0, 100)
-    countdown.Position = UDim2.new(0.5, -75, 0, 95)
+    countdown.Position = UDim2.new(0.5, -75, 0, 80)
     countdown.BackgroundTransparency = 1
     countdown.Text = "10"
     countdown.TextColor3 = Color3.fromRGB(255, 255, 255)
