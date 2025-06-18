@@ -617,6 +617,7 @@ Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 Frame.BackgroundTransparency = 0.3
 Frame.Active = true
 Frame.Draggable = true
+Frame.Visible = false -- Start hidden
 
 -- Add rounded corners to main frame
 local frameCorner = Instance.new("UICorner", Frame)
@@ -1047,7 +1048,7 @@ local function createToggleBtn(screenGui, frame)
     ToggleBtn.Active = true
     ToggleBtn.Draggable = true
 
-    local uiVisible = true
+    local uiVisible = false -- Start with UI hidden
     frame.Visible = uiVisible
 
     -- Track if it's the first time opening the UI
